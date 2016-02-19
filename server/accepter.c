@@ -4,9 +4,12 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <pthread.h>
 #include "request_handlers.h"
 #include "accepter.h"
 #include "common_utils/readwrite.h"
+
+static int thread_sockfd[65536];
 
 void read_head_C(int threadfd, struct message_s *msg)
 {
@@ -37,8 +40,9 @@ int wait_authenicated(int sockfd)
         }
 }
 
-void dedicated_serve(int sockfd)
+void *dedicated_serve(void *p)
 {
+        int sockfd = *((int*)p);
         if (wait_authenicated(sockfd) == -1) {
                 printf("authenication has problem\n");
                 close_serving_thread(sockfd);
@@ -59,12 +63,16 @@ void dedicated_serve(int sockfd)
         }
         /* reach head means client closed */
         printf("closed connection\n");
+        close_serving_thread(sockfd);
+        return NULL;
 }
 
 void mkthread_serve(int sockfd)
 {
-        /* TODO: multithreading */
-        dedicated_serve(sockfd);
+        thread_sockfd[sockfd] = sockfd;
+        pthread_t thread_id;
+        pthread_create(&thread_id ,NULL, dedicated_serve, &thread_sockfd[sockfd]);
+        pthread_detach(thread_id);
 }
 
 void accept_loop(int sockfd)
@@ -97,6 +105,5 @@ void serve(int sockfd)
 void close_serving_thread(int sockfd)
 {
         close(sockfd);
-        puts("TODO: should terminate the thread here. exit for now");
-        exit(0);
+        pthread_exit(NULL);
 }

@@ -45,7 +45,7 @@ void sread_C(int threadfd, void *buf, unsigned int len)
 char *make_path(char *fpath)
 {
         char *p = malloc(strlen(ROOT_DIR) + strlen(fpath) + 2);
-        strcat(p, ROOT_DIR);
+        strcpy(p, ROOT_DIR);
         strcat(p, "/");
         strcat(p, fpath);
         return p;
@@ -159,6 +159,7 @@ int req_put(int sockfd, struct message_s *msg)
 {
         char *filepath = payload_malloc(sockfd, msg, true);
         char *repopath = make_path(filepath);
+        printf("client put %s\n", repopath);
         int saveto_fd = open(repopath, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR);
         free(filepath);
         free(repopath);
@@ -194,6 +195,8 @@ int req_ls(int sockfd, struct message_s *msg)
         struct dirent *dp;
         int char_len = 0;
         while ((dp = readdir(dirp))) {
+                if(dp->d_type == DT_DIR)
+                        continue;
                 int new_len = char_len + (strlen(dp->d_name) + 1);
                 if (new_len >= (2048-1))
                         break;
