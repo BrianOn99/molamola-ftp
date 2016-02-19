@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <sys/stat.h>
 #include "repl.h"
 #include "command_handlers.h"
@@ -22,6 +23,7 @@
 int handler_mola(struct state *mystate, char *arg);
 int handler_get(struct state *mystate, char *arg);
 int handler_put(struct state *mystate, char *arg);
+int handler_ls(struct state *mystate, char *arg);
 
 struct cmd_info cmd_list[] = {
         {"open", BABY, handler_open, 2},
@@ -30,6 +32,7 @@ struct cmd_info cmd_list[] = {
         {"mola", ANY, handler_mola, 1},
         {"get", AUTHED, handler_get, 1},
         {"put", AUTHED, handler_put, 1},
+        {"ls", AUTHED, handler_ls, 0},
 };
 
 struct cmd_info *get_cmd_info(char *cmd_name)
@@ -40,6 +43,20 @@ struct cmd_info *get_cmd_info(char *cmd_name)
         }
 
         return NULL;
+}
+
+char *payload_malloc(int sockfd, struct message_s *msg, bool is_str)
+{
+        ssize_t len = msg->length - sizeof(struct message_s);
+        size_t buf_size = is_str ? len + 1 : len;
+        char *payload = calloc(buf_size, 1);
+        if (!payload) {
+                perror("malloc error");
+                exit(1);
+        }
+        if (sread(sockfd, payload, len) == -1)
+                return NULL;
+        return payload;
 }
 
 void prog(double percent)
@@ -190,6 +207,23 @@ int handler_put(struct state *mystate, char *filepath)
                 perror("error uploading file");
                 return -1;
         }
+
+        return 0;
+}
+
+int handler_ls(struct state *mystate, char *arg)
+{
+        struct message_s recv_msg;
+        write_head(mystate->sockfd, TYPE_LS_REQ, STATUS_UNUSED, 0);
+        read_head(mystate->sockfd, &recv_msg);
+        char *payload = payload_malloc(mystate->sockfd, &recv_msg, false);
+        if (!payload) {
+                fputs("error reading server response of ls", stderr);
+                return -1;
+        }
+        
+        fwrite(payload, 1, payload_size(&recv_msg), stdout);
+        free(payload);
 
         return 0;
 }

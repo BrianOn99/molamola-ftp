@@ -8,14 +8,17 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include "request_handlers.h"
 #include "accepter.h"
 #include "server_main.h"
 #include "common_utils/readwrite.h"
+#include "common_utils/protocol_utils.h"
 
 int req_get(int sockfd, struct message_s *msg);
 int req_put(int sockfd, struct message_s *msg);
 int req_quit(int sockfd, struct message_s *msg);
+int req_ls(int sockfd, struct message_s *msg);
 
 struct req_info {
         char type_code;
@@ -26,6 +29,7 @@ struct req_info req_list[] = {
         {TYPE_GET_REQ, req_get},
         {TYPE_PUT_REQ, req_put},
         {TYPE_QUIT_REQ, req_quit},
+        {TYPE_LS_REQ, req_ls},
 };
 
 /*
@@ -123,6 +127,7 @@ int req_get(int sockfd, struct message_s *msg)
 {
         char *filepath = payload_malloc(sockfd, msg, true);
         char *repopath = make_path(filepath);
+        printf("client wants %s\n", repopath);
         int local_fd = open(repopath, O_RDONLY);
         free(filepath);
         free(repopath);
@@ -174,5 +179,34 @@ int req_put(int sockfd, struct message_s *msg)
         if (ret == -1)
                 close_serving_thread(sockfd);
 
+        return 0;
+}
+
+int req_ls(int sockfd, struct message_s *msg)
+{
+        char buff[2048];
+        DIR *dirp;
+        if (!(dirp = opendir(ROOT_DIR))) {
+                perror(ROOT_DIR " not exist");
+                return -1;
+        }
+
+        struct dirent *dp;
+        int char_len = 0;
+        while ((dp = readdir(dirp))) {
+                int new_len = char_len + (strlen(dp->d_name) + 1);
+                if (new_len >= (2048-1))
+                        break;
+                strcpy(buff + char_len, dp->d_name);
+                strcpy(buff + char_len + strlen(dp->d_name), "\n");
+                printf("%d\n", char_len);
+                char_len = new_len;
+        }
+        closedir(dirp);
+        /* not sending terminate '\0' */
+
+        printf("%d\n", char_len);
+        write_head(sockfd, TYPE_LS_REP, 1, char_len);
+        swrite(sockfd, buff, char_len);
         return 0;
 }

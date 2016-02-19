@@ -1,12 +1,12 @@
+#ifndef PROTOCOL_UTILS_H
+#define PROTOCOL_UTILS_H
+
 #if defined(sun) || defined(__sun)
   #include <sys/int_types.h>
 #else
   #include <stdint.h>
 #endif
 #include <sys/types.h>
-
-#ifndef PROTOCOL_UTILS_H
-#define PROTOCOL_UTILS_H
 
 #define TYPE_OPEN_REQ 0xA1
 #define TYPE_OPEN_REP 0xA2
@@ -16,6 +16,8 @@
 #define TYPE_GET_REP 0xA8
 #define TYPE_PUT_REQ 0xA9
 #define TYPE_PUT_REP 0xAA
+#define TYPE_LS_REQ 0xA5
+#define TYPE_LS_REP 0xA6
 #define TYPE_FILE_DATA 0xFF
 #define TYPE_QUIT_REQ 0xAB
 #define TYPE_QUIT_REP 0xAC
